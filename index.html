@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>DucKhai Bot (Code by AI)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e2f, #252540);
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            width: 380px;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            font-size: 12px;
+            color: #8888aa;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+        .input-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            font-size: 14px;
+            color: #bbbbcc;
+            margin-bottom: 8px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #444466;
+            background: #151525;
+            color: #fff;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: 0.3s;
+        }
+        input:focus {
+            border-color: #00c6ff;
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 198, 255, 0.5);
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 198, 255, 0.6);
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #00ffcc;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>DucKhai Bot</h1>
+    <div class="subtitle">CODE BY AI</div>
+    
+    <div class="input-group">
+        <label for="adminId">Nhập ID Facebook của bạn (Admin):</label>
+        <input type="text" id="adminId" placeholder="Ví dụ: 10008734255...">
+    </div>
+    
+    <button id="startBtn" onclick="startBot()">KHỞI ĐỘNG BOT</button>
+    
+    <div id="status">Trạng thái: Đang dừng...</div>
+</div>
+
+<script>
+    function startBot() {
+        const adminId = document.getElementById('adminId').value.trim();
+        if (!adminId) {
+            alert('Vui lòng nhập ID Facebook Admin!');
+            return;
+        }
+        
+        document.getElementById('status').innerText = 'Trạng thái: Đang kết nối Facebook...';
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('startBtn').style.background = '#444466';
+
+        // Gửi ID Facebook lên server web thông qua API fetch
+        fetch('/start-bot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: adminId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('status').innerText = 'Trạng thái: 🟢 Đã kích hoạt Bot thành công trên hệ thống!';
+            } else {
+                document.getElementById('status').innerText = 'Trạng thái: ❌ Lỗi kích hoạt!';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('startBtn').style.background = 'linear-gradient(to right, #00c6ff, #0072ff)';
+            }
+        })
+        .catch(err => {
+            document.getElementById('status').innerText = 'Trạng thái: ❌ Lỗi kết nối mạng!';
+        });
+    }
+</script>
