@@ -2,89 +2,218 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DucKhai Bot (Code by AI)</title>
+    <!-- Chèn thêm font chữ công nghệ và bộ thư viện Icon -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
+        :root {
+            --bg-glow: #0a0a16;
+            --primary: #00f0ff;
+            --secondary: #ff007f;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f1f7;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e1e2f, #252540);
-            color: #ffffff;
+            background: radial-gradient(circle at 50% 50%, #141432 0%, var(--bg-glow) 100%);
+            color: var(--text-main);
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
+            overflow: hidden;
+            position: relative;
         }
+
+        /* Lưới chạy ngầm phía sau tạo chiều sâu không gian */
+        body::before {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: -1;
+        }
+
+        /* Khung Dashboard Glassmorphism xịn sò */
         .container {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 40px 30px;
             width: 380px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            text-align: center;
+            position: relative;
         }
+
+        /* Viền phát sáng mờ ảo */
+        .container::after {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: linear-gradient(45deg, var(--primary), transparent, var(--secondary));
+            border-radius: 24px;
+            z-index: -2;
+            opacity: 0.3;
+        }
+
+        /* Tiêu đề đổ màu Cyberpunk */
         h1 {
+            font-family: 'Orbitron', sans-serif;
             font-size: 28px;
+            font-weight: 900;
             margin-bottom: 5px;
-            background: linear-gradient(to right, #00c6ff, #0072ff);
+            background: linear-gradient(135deg, var(--primary), #0072ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
-        .subtitle {
-            font-size: 12px;
-            color: #8888aa;
-            margin-bottom: 30px;
+            text-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
             letter-spacing: 1px;
         }
+
+        .subtitle {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            color: #8888aa;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .subtitle i {
+            color: var(--primary);
+            font-size: 10px;
+            animation: pulse 2s infinite;
+        }
+
         .input-group {
             margin-bottom: 25px;
             text-align: left;
+            position: relative;
         }
+
         label {
             display: block;
-            font-size: 14px;
+            font-size: 13px;
             color: #bbbbcc;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            font-weight: 500;
         }
+
+        /* Ô nhập liệu bọc Icon tinh tế */
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #555577;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+
         input {
             width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #444466;
-            background: #151525;
+            padding: 14px 14px 14px 45px;
+            border-radius: 12px;
+            border: 1px solid #333355;
+            background: rgba(10, 10, 25, 0.6);
             color: #fff;
-            font-size: 16px;
+            font-size: 15px;
             box-sizing: border-box;
-            transition: 0.3s;
-        }
-        input:focus {
-            border-color: #00c6ff;
             outline: none;
-            box-shadow: 0 0 10px rgba(0, 198, 255, 0.5);
+            transition: all 0.3s ease;
         }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+            background: rgba(5, 5, 15, 0.8);
+        }
+
+        input:focus + i {
+            color: var(--primary);
+        }
+
+        /* Nút bấm Hover hiệu ứng di chuyển */
         button {
             width: 100%;
-            padding: 14px;
+            padding: 15px;
             border: none;
-            border-radius: 8px;
-            background: linear-gradient(to right, #00c6ff, #0072ff);
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary) 0%, #0072ff 100%);
+            color: #03030f;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 15px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
             cursor: pointer;
-            transition: 0.3s;
-            box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(0, 198, 255, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
         }
-        button:hover {
+
+        button:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 198, 255, 0.6);
+            box-shadow: 0 10px 25px rgba(0, 198, 255, 0.5);
+            filter: brightness(1.1);
         }
+
+        button:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            background: #252538 !important;
+            color: #555577 !important;
+            box-shadow: none !important;
+            cursor: not-allowed;
+            border: 1px solid var(--card-border);
+        }
+
+        /* Khung hiển thị Log trạng thái gọn gàng */
         #status {
-            margin-top: 20px;
-            font-size: 14px;
+            margin-top: 25px;
+            font-size: 13.5px;
             color: #00ffcc;
-            font-weight: 500;
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px dashed rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 12px;
+            line-height: 1.4;
+            transition: all 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
         }
     </style>
 </head>
@@ -92,14 +221,19 @@
 
 <div class="container">
     <h1>DucKhai Bot</h1>
-    <div class="subtitle">CODE BY AI</div>
+    <div class="subtitle"><i class="fa-solid fa-circle"></i> CODE BY AI</div>
     
     <div class="input-group">
         <label for="adminId">Nhập ID Facebook của bạn (Admin):</label>
-        <input type="text" id="adminId" placeholder="Ví dụ: 10008734255...">
+        <div class="input-wrapper">
+            <input type="text" id="adminId" placeholder="Ví dụ: 10008734255...">
+            <i class="fa-solid fa-user-shield"></i>
+        </div>
     </div>
     
-    <button id="startBtn" onclick="startBot()">KHỞI ĐỘNG BOT</button>
+    <button id="startBtn" onclick="startBot()">
+        <i class="fa-solid fa-power-off"></i> KHỞI ĐỘNG BOT
+    </button>
     
     <div id="status">Trạng thái: Đang dừng...</div>
 </div>
@@ -112,11 +246,10 @@
             return;
         }
         
-        document.getElementById('status').innerText = 'Trạng thái: Đang kết nối Facebook...';
+        document.getElementById('status').innerText = 'Trạng thái: ⏳ Đang kết nối Facebook...';
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('startBtn').style.background = '#444466';
 
-        // Gửi ID Facebook lên server web thông qua API fetch
+        // Gửi ID Facebook lên server web thông qua API fetch (Giữ nguyên gốc hệ thống của bạn)
         fetch('/start-bot', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -129,11 +262,13 @@
             } else {
                 document.getElementById('status').innerText = 'Trạng thái: ❌ Lỗi kích hoạt!';
                 document.getElementById('startBtn').disabled = false;
-                document.getElementById('startBtn').style.background = 'linear-gradient(to right, #00c6ff, #0072ff)';
             }
         })
         .catch(err => {
             document.getElementById('status').innerText = 'Trạng thái: ❌ Lỗi kết nối mạng!';
+            document.getElementById('startBtn').disabled = false;
         });
     }
 </script>
+</body>
+</html>
