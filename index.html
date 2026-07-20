@@ -43,8 +43,8 @@
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             background: 
-                radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 85% 85%, rgba(ff, 0, 127, 0.08) 0%, transparent 40%);
+                radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.1) 0%, transparent 45%),
+                radial-gradient(circle at 85% 85%, rgba(255, 0, 127, 0.1) 0%, transparent 45%);
             z-index: -3;
             animation: bgGlowMove 10s infinite alternate ease-in-out;
         }
@@ -75,7 +75,7 @@
         .bottom-left { bottom: 20px; left: 20px; border-right: none; border-top: none; border-color: var(--secondary); filter: drop-shadow(0 0 8px var(--secondary)); }
         .bottom-right { bottom: 20px; right: 20px; border-left: none; border-top: none; }
 
-        /* --- HIỆU ỨNG HẠT NEON BAY LƠ LỬNG --- */
+        /* --- HIỆU ỨNG HẠT NEON ĐƯỢC PHÓNG TO VÀ PHÁT SÁNG --- */
         .particles {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -85,9 +85,8 @@
         .particle {
             position: absolute;
             border-radius: 50%;
-            background: var(--primary);
             animation: floatUp infinite linear;
-            opacity: 0.3;
+            opacity: 0.5; /* Tăng độ hiển thị sắc nét */
         }
 
         /* Vùng bố cục 3 cánh tách biệt */
@@ -367,9 +366,9 @@
 
         @keyframes floatUp {
             0% { transform: translateY(105vh) scale(0.5); opacity: 0; }
-            10% { opacity: 0.4; }
-            90% { opacity: 0.4; }
-            100% { transform: translateY(-5vh) scale(1.2); opacity: 0; }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
         }
 
         /* TỰ ĐỘNG ĐÁP ỨNG DI ĐỘNG */
@@ -460,19 +459,29 @@
 </div>
 
 <script>
-    // Tự động tạo 15 hạt Neon bay lơ lửng ngẫu nhiên ở phần viền nền
+    // Tăng lên 40 hạt và làm hạt TO hơn, SÁNG hơn bằng thuộc tính box-shadow phát sáng
     const pContainer = document.getElementById('particleContainer');
     const colors = ['#00f0ff', '#ff007f'];
-    for (let i = 0; i < 15; i++) {
+    
+    for (let i = 0; i < 40; i++) {
         const p = document.createElement('div');
         p.classList.add('particle');
-        const size = Math.random() * 5 + 2;
+        
+        // Tăng kích thước hạt (Từ 6px đến 14px)
+        const size = Math.random() * 8 + 6;
         p.style.width = `${size}px`;
         p.style.height = `${size}px`;
         p.style.left = `${Math.random() * 100}vw`;
-        p.style.animationDuration = `${Math.random() * 8 + 6}s`;
-        p.style.animationDelay = `${Math.random() * 5}s`;
-        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        
+        // Tốc độ bay ngẫu nhiên mềm mại
+        p.style.animationDuration = `${Math.random() * 10 + 8}s`;
+        p.style.animationDelay = `${Math.random() * 6}s`;
+        
+        // Chọn màu và thêm hiệu ứng box-shadow phát sáng rực rỡ tương ứng
+        const pickedColor = colors[Math.floor(Math.random() * colors.length)];
+        p.style.background = pickedColor;
+        p.style.boxShadow = `0 0 ${size + 4}px ${pickedColor}, 0 0 ${size / 2}px #fff`;
+        
         pContainer.appendChild(p);
     }
 
@@ -501,7 +510,7 @@
         term.scrollTop = term.scrollHeight;
     }
 
-    // Logic xử lý chính của nút bấm (Giữ nguyên cấu trúc gốc)
+    // Logic xử lý chính của nút bấm
     function startBot() {
         const adminId = document.getElementById('adminId').value.trim();
         if (!adminId) {
