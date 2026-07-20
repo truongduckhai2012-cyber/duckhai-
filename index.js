@@ -14,6 +14,17 @@ module.exports = function(ADMIN_ID, updateStatus) {
         return updateStatus("❌ Lỗi: Thiếu file appstate.json!");
     }
 
+    // --- BƯỚC 1: KIỂM TRA ĐỊNH DẠNG ID NHẬP VÀO CÓ HỢP LỆ KHÔNG ---
+    const cleanID = String(ADMIN_ID).trim();
+    // Regex kiểm tra: Phải hoàn toàn là số và có độ dài từ 4 đến 16 ký tự
+    const isValidFormat = /^[0-9]{4,16}$/.test(cleanID);
+
+    if (!isValidFormat) {
+        updateStatus("❌ Sai id facebook! Vui lòng kiểm tra id của bạn.");
+        console.log(`[HỆ THỐNG] Từ chối đăng nhập do ID không hợp lệ: ${ADMIN_ID}`);
+        return; // Bot dừng lại luôn, không thèm chạy lệnh đăng nhập Facebook ngầm
+    }
+
     const credentials = { appState: JSON.parse(fs.readFileSync('appstate.json', 'utf8')) };
 
     login(credentials, (err, api) => {
@@ -22,23 +33,19 @@ module.exports = function(ADMIN_ID, updateStatus) {
             return updateStatus("❌ Đăng nhập thất bại! Kiểm tra appstate.");
         }
 
-        // --- BẮT ĐẦU KIỂM TRA ID FACEBOOK CỦA BOT ---
-        // Lấy ID thật của tài khoản Bot đang đăng nhập
+        // --- BƯỚC 2: SO KHỚP XEM ID CÓ TRÙNG VỚI NICK BOT KHÔNG ---
         const botTrueID = api.getCurrentUserID(); 
 
-        // So sánh ID nhập từ web (ADMIN_ID) với ID thật của nick Bot
-        if (String(ADMIN_ID).trim() !== String(botTrueID).trim()) {
+        if (cleanID !== String(botTrueID).trim()) {
             updateStatus("❌ Sai id facebook! Vui lòng kiểm tra id của bạn.");
-            console.log(`[HỆ THỐNG] Đăng nhập thất bại do sai ID Admin (Nhập vào: ${ADMIN_ID} | Thật: ${botTrueID})`);
-            
-            // Nếu có hàm logout thì gọi, không thì hủy kết nối ngầm để bot dừng hoạt động
+            console.log(`[HỆ THỐNG] Sai tài khoản Admin (Nhập vào: ${cleanID} | ID thật của Bot: ${botTrueID})`);
             if (typeof api.logout === "function") api.logout();
-            return; // Dừng toàn bộ chương trình, bot sẽ không xử lý tin nhắn nữa
+            return; 
         }
 
-        // Nếu trùng khớp ID thật
+        // Nếu vượt qua cả 2 lớp kiểm tra trên
         updateStatus("🎉 Chúc mừng! id đã đúng. bot đã bắt đầu đăng nhập.");
-        console.log("🟢 [HỆ THỐNG] Xác minh ID Admin thành công!");
+        console.log("🟢 [HỆ THỐNG] Xác minh ID Admin thành công và hợp lệ!");
 
         api.setOptions({ 
             listenEvents: true,  
@@ -49,13 +56,12 @@ module.exports = function(ADMIN_ID, updateStatus) {
             userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         });
 
-        // BIỆN PHÁP CHỐNG LOGOUT: Tự động lưu Cookie mới bằng hàm trích xuất trực tiếp từ api (Chuẩn biar-fca)
+        // Tự động cập nhật AppState
         const updateCookie = () => {
             try {
                 if (typeof api.getAppState === "function") {
                     const newState = api.getAppState();
                     fs.writeFileSync('appstate.json', JSON.stringify(newState, null, 2), 'utf8');
-                    console.log("🔄 [HỆ THỐNG] Đã trích xuất và cập nhật Cookie mới vào appstate.json!");
                 }
             } catch (writeErr) {
                 console.error("❌ Lỗi tự động lưu Cookie mới:", writeErr);
@@ -64,23 +70,13 @@ module.exports = function(ADMIN_ID, updateStatus) {
 
         api.listenMqtt((err, message) => {
             if (err || !message) return;
-
-            // Mỗi khi có tương tác hoặc sự kiện mới, kích hoạt kiểm tra và lưu cookie nếu có thay đổi
             updateCookie();
 
-            // ===== [TÍNH NĂNG] TỰ ĐỘNG CHẤP NHẬN KẾT BẠN =====
+            // ===== TỰ ĐỘNG CHẤP NHẬN KẾT BẠN =====
             if (message.type === "friend_request" || message.logMessageType === "friend_request_received") {
                 const senderID = message.senderID || message.author;
-                console.log(`[FRIEND REQUEST] Phát hiện lời mời từ ID: ${senderID}`);
-
-                // Gọi hàm chấp nhận kết bạn của biar-fca (true = đồng ý)
                 api.handleFriendRequest(senderID, true, (err) => {
-                    if (err) {
-                        console.error(`❌ Không thể kết bạn với ${senderID}:`, err.message || err);
-                    } else {
-                        console.log(`✅ Tự động chấp nhận kết bạn thành công với ID: ${senderID}`);
-                        
-                        // Áp dụng độ trễ nhẹ khi nhắn tin kết bạn để Facebook không quét hành vi bot
+                    if (!err) {
                         api.sendTypingIndicator(senderID, () => {
                             setTimeout(() => {
                                 api.sendMessage("Cảm ơn bạn đã kết bạn với Bot nhé! Gõ !menu để xem các tính năng giải trí nha. ✨", senderID);
@@ -88,12 +84,10 @@ module.exports = function(ADMIN_ID, updateStatus) {
                         });
                     }
                 });
-                return; // Kết thúc xử lý sự kiện kết bạn tại đây
+                return;
             }
 
-            // Lọc các tin nhắn hợp lệ cho hệ thống lệnh
             if (message.type !== "message") return;
-
             if (processedMessages.has(message.messageID)) return;
             processedMessages.add(message.messageID);
             setTimeout(() => processedMessages.delete(message.messageID), 3000);
@@ -101,21 +95,13 @@ module.exports = function(ADMIN_ID, updateStatus) {
             const senderID = message.senderID;
             const body = message.body ? message.body.trim() : "";
             const threadID = message.threadID; 
-            const mentions = message.mentions || {};
-
-            const isGroup = threadID !== senderID; 
-            const isAdmin = (senderID === ADMIN_ID); // Lúc này chắc chắn trùng khớp vì đã qua bộ lọc ở trên
+            const isAdmin = (senderID === cleanID); 
             const hasPermission = isAdmin || isPublicMode;
 
-            // BIỆN PHÁP CHỐNG LOGOUT: Giả lập trạng thái "Đang gõ" và tạo độ trễ 1.5 giây trước khi gửi
             function safeSend(text, targetThread, msgID = null) {
                 api.sendTypingIndicator(targetThread, (err) => {
-                    if (err) console.log(`❌ Lỗi bật trạng thái gõ:`, err.message || err);
-                    
                     setTimeout(() => {
-                        api.sendMessage(text, targetThread, (err) => {
-                            if (err) console.log(`❌ Lỗi gửi tin nhắn:`, err.message || err);
-                        }, msgID);
+                        api.sendMessage(text, targetThread, () => {}, msgID);
                     }, 1500); 
                 });
             }
@@ -123,17 +109,7 @@ module.exports = function(ADMIN_ID, updateStatus) {
             // --- HỆ THỐNG LỆNH CỦA BOT ---
             if (body.toLowerCase() === "!menu") {
                 if (!hasPermission) return safeSend("❌ Bạn không có quyền sử dụng Menu!", threadID, message.messageID);
-                const menuText = 
-`╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗
-  📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡
-  🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]
-  🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠Ｅ 𝗚𝗜𝗔̉𝑰 𝗧𝗥Ｉ́
-  🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]
-  🔹 Nối từ: !game noitu [từ_2_tiếng]
-  ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝗜̀𝗡𝗛 𝗤𝗨𝗬𝗘̂̀𝗡 (Chỉ Admin)
-  🔹 Mở quyền nhóm: !accept @all
-╚═══════════════════════╝`;
-                return safeSend(menuText, threadID, message.messageID);
+                return safeSend(`╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗\n 📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡\n 🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]\n 🎮 [𝟮] 𝗠𝗜𝗡Ｉ 𝗚𝗔𝗠𝗘 𝗚𝗜𝗔̉𝑰 𝗧🇷𝗜́\n 🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]\n 🔹 Nối từ: !game noitu [từ_2_tiếng]\n ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝗜̀𝗡𝗛 𝗤𝗨𝗬𝗘̂̀𝗡 (Chỉ Admin)\n 🔹 Mở quyền nhóm: !accept @all\n╚═══════════════════════╝`, threadID, message.messageID);
             }
 
             if (body.toLowerCase().startsWith("!game oantuti ")) {
