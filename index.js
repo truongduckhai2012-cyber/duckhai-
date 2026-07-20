@@ -26,7 +26,7 @@ module.exports = function(ADMIN_ID, updateStatus) {
         updateStatus("🟢 BOT ĐÃ HOẠT ĐỘNG THÀNH CÔNG!");
 
         api.setOptions({ 
-            listenEvents: true, 
+            listenEvents: true,  // Bắt buộc bật true để nhận diện sự kiện kết bạn
             selfListen: false,
             forceUseID: true,
             autoMarkDelivery: true,
@@ -35,7 +35,28 @@ module.exports = function(ADMIN_ID, updateStatus) {
         });
 
         api.listenMqtt((err, message) => {
-            if (err || !message || message.type !== "message") return;
+            if (err || !message) return;
+
+            // ===== [TÍNH NĂNG] TỰ ĐỘNG CHẤP NHẬN KẾT BẠN =====
+            if (message.type === "friend_request" || message.logMessageType === "friend_request_received") {
+                const senderID = message.senderID || message.author;
+                console.log(`[FRIEND REQUEST] Phát hiện lời mời từ ID: ${senderID}`);
+
+                // Gọi hàm chấp nhận kết bạn của biar-fca (true = đồng ý)
+                api.handleFriendRequest(senderID, true, (err) => {
+                    if (err) {
+                        console.error(`❌ Không thể kết bạn với ${senderID}:`, err.message || err);
+                    } else {
+                        console.log(`✅ Tự động chấp nhận kết bạn thành công với ID: ${senderID}`);
+                        // Gửi tin nhắn chào mừng (Tùy chọn, có thể xóa nếu không cần)
+                        api.sendMessage("Cảm ơn bạn đã kết bạn với Bot nhé! Gõ !menu để xem các tính năng giải trí nha. ✨", senderID);
+                    }
+                });
+                return; // Kết thúc xử lý sự kiện kết bạn tại đây
+            }
+
+            // Lọc các tin nhắn hợp lệ cho hệ thống lệnh
+            if (message.type !== "message") return;
 
             if (processedMessages.has(message.messageID)) return;
             processedMessages.add(message.messageID);
