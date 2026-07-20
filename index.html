@@ -10,7 +10,7 @@
     
     <style>
         :root {
-            --bg-glow: #060610;
+            --bg-glow: #04040c;
             --primary: #00f0ff;
             --secondary: #ff007f;
             --card-bg: rgba(255, 255, 255, 0.03);
@@ -26,7 +26,7 @@
         }
 
         body {
-            background: radial-gradient(circle at 50% 50%, #111126 0%, var(--bg-glow) 100%);
+            background-color: var(--bg-glow);
             color: var(--text-main);
             min-height: 100vh;
             display: flex;
@@ -37,15 +37,57 @@
             padding: 20px;
         }
 
-        /* Lưới Cyber chạy ngầm phía sau nền */
+        /* --- HIỆU ỨNG VIỀN NỀN PHÁT SÁNG RGB DI CHUYỂN --- */
         body::before {
             content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(ff, 0, 127, 0.08) 0%, transparent 40%);
+            z-index: -3;
+            animation: bgGlowMove 10s infinite alternate ease-in-out;
+        }
+
+        /* Lưới Cyber chạy ngầm */
+        .cyber-grid {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             background-image: linear-gradient(rgba(0, 240, 255, 0.015) 1px, transparent 1px),
                               linear-gradient(90deg, rgba(0, 240, 255, 0.015) 1px, transparent 1px);
             background-size: 40px 40px;
             z-index: -2;
+        }
+
+        /* --- 4 KHUNG VIỀN GÓC MÀN HÌNH CYBERPUNK --- */
+        .corner-border {
+            position: fixed;
+            width: 30px;
+            height: 30px;
+            border: 3px solid var(--primary);
+            z-index: 10;
+            opacity: 0.7;
+            filter: drop-shadow(0 0 8px var(--primary));
+            pointer-events: none;
+        }
+        .top-left { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .top-right { top: 20px; right: 20px; border-left: none; border-bottom: none; border-color: var(--secondary); filter: drop-shadow(0 0 8px var(--secondary)); }
+        .bottom-left { bottom: 20px; left: 20px; border-right: none; border-top: none; border-color: var(--secondary); filter: drop-shadow(0 0 8px var(--secondary)); }
+        .bottom-right { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+
+        /* --- HIỆU ỨNG HẠT NEON BAY LƠ LỬNG --- */
+        .particles {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: floatUp infinite linear;
+            opacity: 0.3;
         }
 
         /* Vùng bố cục 3 cánh tách biệt */
@@ -56,6 +98,7 @@
             gap: 24px;
             width: 100%;
             max-width: 1200px;
+            z-index: 1;
         }
 
         /* Khung kính mờ chung cho các bảng (Glassmorphism) */
@@ -317,15 +360,37 @@
             50% { width: 68%; }
         }
 
-        /* TỰ ĐỘNG ĐÁP ỨNG DI ĐỘNG: Màn hình bé dưới 1000px tự động ẩn 2 bên cánh cho gọn */
+        @keyframes bgGlowMove {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(105vh) scale(0.5); opacity: 0; }
+            10% { opacity: 0.4; }
+            90% { opacity: 0.4; }
+            100% { transform: translateY(-5vh) scale(1.2); opacity: 0; }
+        }
+
+        /* TỰ ĐỘNG ĐÁP ỨNG DI ĐỘNG */
         @media (max-width: 1000px) {
-            .side-panel {
-                display: none;
+            .side-panel, .corner-border {
+                display: none !important;
             }
         }
     </style>
 </head>
 <body>
+
+<!-- Khung lưới nền và hạt động -->
+<div class="cyber-grid"></div>
+<div class="particles" id="particleContainer"></div>
+
+<!-- Khung góc HUD công nghệ -->
+<div class="corner-border top-left"></div>
+<div class="corner-border top-right"></div>
+<div class="corner-border bottom-left"></div>
+<div class="corner-border bottom-right"></div>
 
 <div class="wrapper">
     
@@ -395,7 +460,23 @@
 </div>
 
 <script>
-    // Giả lập đồng hồ nhảy Uptime và Ping chạy thời gian thực cho đẹp mắt
+    // Tự động tạo 15 hạt Neon bay lơ lửng ngẫu nhiên ở phần viền nền
+    const pContainer = document.getElementById('particleContainer');
+    const colors = ['#00f0ff', '#ff007f'];
+    for (let i = 0; i < 15; i++) {
+        const p = document.createElement('div');
+        p.classList.add('particle');
+        const size = Math.random() * 5 + 2;
+        p.style.width = `${size}px`;
+        p.style.height = `${size}px`;
+        p.style.left = `${Math.random() * 100}vw`;
+        p.style.animationDuration = `${Math.random() * 8 + 6}s`;
+        p.style.animationDelay = `${Math.random() * 5}s`;
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        pContainer.appendChild(p);
+    }
+
+    // Giả lập đồng hồ nhảy Uptime và Ping chạy thời gian thực
     let seconds = 252;
     setInterval(() => {
         seconds++;
@@ -403,8 +484,6 @@
         let m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
         let s = (seconds % 60).toString().padStart(2, '0');
         document.getElementById('uptimeVal').innerText = `${h}:${m}:${s}`;
-        
-        // Nhảy ping ngẫu nhiên
         document.getElementById('pingVal').innerText = Math.floor(Math.random() * (35 - 18) + 18) + ' ms';
     }, 1000);
 
@@ -419,10 +498,10 @@
         if(type === 'warn') classType = 'class="log-warn"';
 
         term.innerHTML += `<div class="log-line"><span class="log-time">${timeStr}</span><span ${classType}>${text}</span></div>`;
-        term.scrollTop = term.scrollHeight; // Tự cuộn xuống dòng mới nhất
+        term.scrollTop = term.scrollHeight;
     }
 
-    // Logic xử lý chính của nút bấm bấm (Giữ nguyên cấu trúc fetch gốc của bạn)
+    // Logic xử lý chính của nút bấm (Giữ nguyên cấu trúc gốc)
     function startBot() {
         const adminId = document.getElementById('adminId').value.trim();
         if (!adminId) {
