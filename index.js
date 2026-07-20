@@ -31,22 +31,24 @@ module.exports = function(ADMIN_ID, updateStatus) {
             return updateStatus("❌ Đăng nhập thất bại! Kiểm tra appstate.");
         }
 
-        // --- BƯỚC 2: TRA CỨU XEM ID CÓ THỰC SỰ TỒN TẠI TRÊN FACEBOOK KHÔNG ---
+        // --- BƯỚC 2: TRA CỨU XEM ID CÓ TRÊN FACEBOOK KHÔNG (ĐÃ SỬA THÀNH MẢNG) ---
         console.log(`[HỆ THỐNG] Đang tiến hành tra cứu ID Admin: ${cleanID}...`);
         
-        api.getUserInfo(cleanID, (userInfoErr, ret) => {
-            // Nếu Facebook báo lỗi hoặc không trả về thông tin của ID này
+        // Sửa lỗi: Bọc cleanID vào trong cặp dấu ngoặc vuông [ ] để tạo thành mảng dữ liệu hợp lệ
+        api.getUserInfo([cleanID], (userInfoErr, ret) => {
+            
+            // Nếu Facebook trả về lỗi hoặc mảng rỗng không có ID này
             if (userInfoErr || !ret || Object.keys(ret).length === 0 || !ret[cleanID]) {
                 updateStatus("❌ Sai id facebook! Vui lòng kiểm tra id của bạn.");
                 console.log(`⚠️ [HỆ THỐNG] ID ${cleanID} không tồn tại trên hệ thống Facebook! Từ chối thiết lập Admin.`);
-                if (typeof api.logout === "function") api.logout(); // Thoát phiên làm việc của bot để bảo mật
+                if (typeof api.logout === "function") api.logout(); 
                 return;
             }
 
-            // Nếu tồn tại, lấy ra tên Facebook của Admin để log cho đẹp
+            // Lấy tên Facebook của Admin từ kết quả trả về
             const adminName = ret[cleanID].name || "Người dùng Facebook";
 
-            // Vượt qua kiểm tra -> Thông báo thành công
+            // ID hoàn toàn có thật -> Thông báo thành công và cấp quyền
             updateStatus("🎉 Chúc mừng! id đã đúng. bot đã bắt đầu đăng nhập.");
             console.log(`🟢 [HỆ THỐNG] ID hợp lệ! Đã thiết lập Admin: ${adminName} (${cleanID})`);
 
@@ -113,7 +115,7 @@ module.exports = function(ADMIN_ID, updateStatus) {
                 // --- HỆ THỐNG LỆNH CỦA BOT ---
                 if (body.toLowerCase() === "!menu") {
                     if (!hasPermission) return safeSend("❌ Bạn không có quyền sử dụng Menu!", threadID, message.messageID);
-                    return safeSend(`╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗\n 📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡\n 🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]\n 🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠Ｅ 𝗚𝗜𝗔̉𝑰 𝗧🇷𝗜́\n 🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]\n 🔹 Nối từ: !game noitu [từ_2_tiếng]\n ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝗜̀𝗡𝗛 𝗤𝗨𝗬Ｅ̂̀𝗡 (Chỉ Admin)\n 🔹 Mở quyền nhóm: !accept @all\n╚═══════════════════════╝`, threadID, message.messageID);
+                    return safeSend(`╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗\n 📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡\n 🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]\n 🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠Ｅ 𝗚𝗜𝗔̉𝑰 𝗧🇷𝗜́\n 🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]\n 🔹 Nối từ: !game noitu [từ_2_tiếng]\n ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝑰̀𝗡𝗛 𝗤𝗨𝗬Ｅ̂̀𝗡 (Chỉ Admin)\n 🔹 Mở quyền nhóm: !accept @all\n╚═══════════════════════╝`, threadID, message.messageID);
                 }
 
                 if (body.toLowerCase().startsWith("!game oantuti ")) {
