@@ -34,6 +34,16 @@ module.exports = function(ADMIN_ID, updateStatus) {
             userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         });
 
+        // BỆNH PHÁP 1: Tự động lưu lại Cookie mới mỗi khi Facebook làm mới session (Tránh lệch phiên đăng nhập)
+        api.on("stateChange", (newState) => {
+            try {
+                fs.writeFileSync('appstate.json', JSON.stringify(newState, null, 2), 'utf8');
+                console.log("🔄 [HỆ THỐNG] Đã tự động cập nhật Cookie mới vào appstate.json!");
+            } catch (writeErr) {
+                console.error("❌ Lỗi tự động lưu Cookie mới:", writeErr);
+            }
+        });
+
         api.listenMqtt((err, message) => {
             if (err || !message) return;
 
@@ -48,8 +58,13 @@ module.exports = function(ADMIN_ID, updateStatus) {
                         console.error(`❌ Không thể kết bạn với ${senderID}:`, err.message || err);
                     } else {
                         console.log(`✅ Tự động chấp nhận kết bạn thành công với ID: ${senderID}`);
-                        // Gửi tin nhắn chào mừng (Tùy chọn, có thể xóa nếu không cần)
-                        api.sendMessage("Cảm ơn bạn đã kết bạn với Bot nhé! Gõ !menu để xem các tính năng giải trí nha. ✨", senderID);
+                        
+                        // Áp dụng độ trễ nhẹ khi nhắn tin kết bạn để Facebook không quét hành vi bot
+                        api.sendTypingIndicator(senderID, () => {
+                            setTimeout(() => {
+                                api.sendMessage("Cảm ơn bạn đã kết bạn với Bot nhé! Gõ !menu để xem các tính năng giải trí nha. ✨", senderID);
+                            }, 1500);
+                        });
                     }
                 });
                 return; // Kết thúc xử lý sự kiện kết bạn tại đây
@@ -71,10 +86,17 @@ module.exports = function(ADMIN_ID, updateStatus) {
             const isAdmin = (senderID === ADMIN_ID); // So khớp với ID nhập từ App công cụ
             const hasPermission = isAdmin || isPublicMode;
 
+            // BIỆN PHÁP 2: Giả lập trạng thái "Đang gõ" và tạo độ trễ 1.5 giây trước khi gửi (Chống spam/Chống logout)
             function safeSend(text, targetThread, msgID = null) {
-                api.sendMessage(text, targetThread, (err) => {
-                    if (err) console.log(`❌ Lỗi gửi:`, err.message || err);
-                }, msgID);
+                api.sendTypingIndicator(targetThread, (err) => {
+                    if (err) console.log(`❌ Lỗi bật trạng thái gõ:`, err.message || err);
+                    
+                    setTimeout(() => {
+                        api.sendMessage(text, targetThread, (err) => {
+                            if (err) console.log(`❌ Lỗi gửi tin nhắn:`, err.message || err);
+                        }, msgID);
+                    }, 1500); // 1.5 giây giả lập thời gian người đọc và gõ tin nhắn
+                });
             }
 
             // --- HỆ THỐNG LỆNH CỦA BOT ---
@@ -82,9 +104,9 @@ module.exports = function(ADMIN_ID, updateStatus) {
                 if (!hasPermission) return safeSend("❌ Bạn không có quyền sử dụng Menu!", threadID, message.messageID);
                 const menuText = 
 `╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗
-  📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 𝗡𝗛𝗔́𝗡
+  📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡
   🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]
-  🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠Ｅ 𝗚𝗜𝗔̉𝑰 𝗧𝗥𝗜́
+  🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠𝗘 𝗚𝗜𝗔̉𝑰 𝗧𝗥𝗜́
   🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]
   🔹 Nối từ: !game noitu [từ_2_tiếng]
   ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝗜̀𝗡𝗛 𝗤𝗨𝗬𝗘̂̀𝗡 (Chỉ Admin)
