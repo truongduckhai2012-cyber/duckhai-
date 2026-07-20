@@ -34,18 +34,24 @@ module.exports = function(ADMIN_ID, updateStatus) {
             userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         });
 
-        // BỆNH PHÁP 1: Tự động lưu lại Cookie mới mỗi khi Facebook làm mới session (Tránh lệch phiên đăng nhập)
-        api.on("stateChange", (newState) => {
+        // BIỆN PHÁP 1: Tự động lưu Cookie mới bằng hàm trích xuất trực tiếp từ api (Chuẩn biar-fca)
+        const updateCookie = () => {
             try {
-                fs.writeFileSync('appstate.json', JSON.stringify(newState, null, 2), 'utf8');
-                console.log("🔄 [HỆ THỐNG] Đã tự động cập nhật Cookie mới vào appstate.json!");
+                if (typeof api.getAppState === "function") {
+                    const newState = api.getAppState();
+                    fs.writeFileSync('appstate.json', JSON.stringify(newState, null, 2), 'utf8');
+                    console.log("🔄 [HỆ THỐNG] Đã trích xuất và cập nhật Cookie mới vào appstate.json!");
+                }
             } catch (writeErr) {
                 console.error("❌ Lỗi tự động lưu Cookie mới:", writeErr);
             }
-        });
+        };
 
         api.listenMqtt((err, message) => {
             if (err || !message) return;
+
+            // Mỗi khi có tương tác hoặc sự kiện mới, kích hoạt kiểm tra và lưu cookie nếu có thay đổi
+            updateCookie();
 
             // ===== [TÍNH NĂNG] TỰ ĐỘNG CHẤP NHẬN KẾT BẠN =====
             if (message.type === "friend_request" || message.logMessageType === "friend_request_received") {
