@@ -14,15 +14,14 @@ module.exports = function(ADMIN_ID, updateStatus) {
         return updateStatus("❌ Lỗi: Thiếu file appstate.json!");
     }
 
-    // --- BƯỚC 1: KIỂM TRA ĐỊNH DẠNG ID NHẬP VÀO CÓ HỢP LỆ KHÔNG ---
+    // --- KIỂM TRA ĐỊNH DẠNG ID ADMIN NHẬP VÀO ---
     const cleanID = String(ADMIN_ID).trim();
-    // Regex kiểm tra: Phải hoàn toàn là số và có độ dài từ 4 đến 16 ký tự
     const isValidFormat = /^[0-9]{4,16}$/.test(cleanID);
 
     if (!isValidFormat) {
         updateStatus("❌ Sai id facebook! Vui lòng kiểm tra id của bạn.");
-        console.log(`[HỆ THỐNG] Từ chối đăng nhập do ID không hợp lệ: ${ADMIN_ID}`);
-        return; // Bot dừng lại luôn, không thèm chạy lệnh đăng nhập Facebook ngầm
+        console.log(`[HỆ THỐNG] Từ chối do ID không hợp lệ định dạng: ${ADMIN_ID}`);
+        return; 
     }
 
     const credentials = { appState: JSON.parse(fs.readFileSync('appstate.json', 'utf8')) };
@@ -33,19 +32,9 @@ module.exports = function(ADMIN_ID, updateStatus) {
             return updateStatus("❌ Đăng nhập thất bại! Kiểm tra appstate.");
         }
 
-        // --- BƯỚC 2: SO KHỚP XEM ID CÓ TRÙNG VỚI NICK BOT KHÔNG ---
-        const botTrueID = api.getCurrentUserID(); 
-
-        if (cleanID !== String(botTrueID).trim()) {
-            updateStatus("❌ Sai id facebook! Vui lòng kiểm tra id của bạn.");
-            console.log(`[HỆ THỐNG] Sai tài khoản Admin (Nhập vào: ${cleanID} | ID thật của Bot: ${botTrueID})`);
-            if (typeof api.logout === "function") api.logout();
-            return; 
-        }
-
-        // Nếu vượt qua cả 2 lớp kiểm tra trên
+        // Đăng nhập Facebook thành công và ID hợp lệ cấu trúc -> Báo thành công lên web
         updateStatus("🎉 Chúc mừng! id đã đúng. bot đã bắt đầu đăng nhập.");
-        console.log("🟢 [HỆ THỐNG] Xác minh ID Admin thành công và hợp lệ!");
+        console.log(`🟢 [HỆ THỐNG] Đăng nhập thành công! Thiết lập Admin ID là: ${cleanID}`);
 
         api.setOptions({ 
             listenEvents: true,  
@@ -95,6 +84,8 @@ module.exports = function(ADMIN_ID, updateStatus) {
             const senderID = message.senderID;
             const body = message.body ? message.body.trim() : "";
             const threadID = message.threadID; 
+            
+            // So khớp ID người gửi tin nhắn với ID Admin bạn vừa nhập vào web
             const isAdmin = (senderID === cleanID); 
             const hasPermission = isAdmin || isPublicMode;
 
@@ -109,7 +100,7 @@ module.exports = function(ADMIN_ID, updateStatus) {
             // --- HỆ THỐNG LỆNH CỦA BOT ---
             if (body.toLowerCase() === "!menu") {
                 if (!hasPermission) return safeSend("❌ Bạn không có quyền sử dụng Menu!", threadID, message.messageID);
-                return safeSend(`╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗\n 📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡\n 🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]\n 🎮 [𝟮] 𝗠𝗜𝗡Ｉ 𝗚𝗔𝗠𝗘 𝗚𝗜𝗔̉𝑰 𝗧🇷𝗜́\n 🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]\n 🔹 Nối từ: !game noitu [từ_2_tiếng]\n ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝗜̀𝗡𝗛 𝗤𝗨𝗬𝗘̂̀𝗡 (Chỉ Admin)\n 🔹 Mở quyền nhóm: !accept @all\n╚═══════════════════════╝`, threadID, message.messageID);
+                return safeSend(`╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗\n 📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡\n 🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]\n 🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠𝗘 𝗚𝗜𝗔̉𝑰 𝗧🇷𝗜́\n 🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]\n 🔹 Nối từ: !game noitu [từ_2_tiếng]\n ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝗜̀𝗡𝗛 𝗤𝗨𝗬𝗘̂̀𝗡 (Chỉ Admin)\n 🔹 Mở quyền nhóm: !accept @all\n╚═══════════════════════╝`, threadID, message.messageID);
             }
 
             if (body.toLowerCase().startsWith("!game oantuti ")) {
