@@ -22,11 +22,26 @@ module.exports = function(ADMIN_ID, updateStatus) {
             return updateStatus("❌ Đăng nhập thất bại! Kiểm tra appstate.");
         }
 
-        // Báo trạng thái thành công lên màn hình App
-        updateStatus("🟢 BOT ĐÃ HOẠT ĐỘNG THÀNH CÔNG!");
+        // --- BẮT ĐẦU KIỂM TRA ID FACEBOOK CỦA BOT ---
+        // Lấy ID thật của tài khoản Bot đang đăng nhập
+        const botTrueID = api.getCurrentUserID(); 
+
+        // So sánh ID nhập từ web (ADMIN_ID) với ID thật của nick Bot
+        if (String(ADMIN_ID).trim() !== String(botTrueID).trim()) {
+            updateStatus("❌ Sai id facebook! Vui lòng kiểm tra id của bạn.");
+            console.log(`[HỆ THỐNG] Đăng nhập thất bại do sai ID Admin (Nhập vào: ${ADMIN_ID} | Thật: ${botTrueID})`);
+            
+            // Nếu có hàm logout thì gọi, không thì hủy kết nối ngầm để bot dừng hoạt động
+            if (typeof api.logout === "function") api.logout();
+            return; // Dừng toàn bộ chương trình, bot sẽ không xử lý tin nhắn nữa
+        }
+
+        // Nếu trùng khớp ID thật
+        updateStatus("🎉 Chúc mừng! id đã đúng. bot đã bắt đầu đăng nhập.");
+        console.log("🟢 [HỆ THỐNG] Xác minh ID Admin thành công!");
 
         api.setOptions({ 
-            listenEvents: true,  // Bắt buộc bật true để nhận diện sự kiện kết bạn
+            listenEvents: true,  
             selfListen: false,
             forceUseID: true,
             autoMarkDelivery: true,
@@ -34,7 +49,7 @@ module.exports = function(ADMIN_ID, updateStatus) {
             userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         });
 
-        // BIỆN PHÁP 1: Tự động lưu Cookie mới bằng hàm trích xuất trực tiếp từ api (Chuẩn biar-fca)
+        // BIỆN PHÁP CHỐNG LOGOUT: Tự động lưu Cookie mới bằng hàm trích xuất trực tiếp từ api (Chuẩn biar-fca)
         const updateCookie = () => {
             try {
                 if (typeof api.getAppState === "function") {
@@ -89,10 +104,10 @@ module.exports = function(ADMIN_ID, updateStatus) {
             const mentions = message.mentions || {};
 
             const isGroup = threadID !== senderID; 
-            const isAdmin = (senderID === ADMIN_ID); // So khớp với ID nhập từ App công cụ
+            const isAdmin = (senderID === ADMIN_ID); // Lúc này chắc chắn trùng khớp vì đã qua bộ lọc ở trên
             const hasPermission = isAdmin || isPublicMode;
 
-            // BIỆN PHÁP 2: Giả lập trạng thái "Đang gõ" và tạo độ trễ 1.5 giây trước khi gửi (Chống spam/Chống logout)
+            // BIỆN PHÁP CHỐNG LOGOUT: Giả lập trạng thái "Đang gõ" và tạo độ trễ 1.5 giây trước khi gửi
             function safeSend(text, targetThread, msgID = null) {
                 api.sendTypingIndicator(targetThread, (err) => {
                     if (err) console.log(`❌ Lỗi bật trạng thái gõ:`, err.message || err);
@@ -101,7 +116,7 @@ module.exports = function(ADMIN_ID, updateStatus) {
                         api.sendMessage(text, targetThread, (err) => {
                             if (err) console.log(`❌ Lỗi gửi tin nhắn:`, err.message || err);
                         }, msgID);
-                    }, 1500); // 1.5 giây giả lập thời gian người đọc và gõ tin nhắn
+                    }, 1500); 
                 });
             }
 
@@ -112,7 +127,7 @@ module.exports = function(ADMIN_ID, updateStatus) {
 `╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗
   📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡
   🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]
-  🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠𝗘 𝗚𝗜𝗔̉𝑰 𝗧𝗥𝗜́
+  🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠Ｅ 𝗚𝗜𝗔̉𝑰 𝗧𝗥Ｉ́
   🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]
   🔹 Nối từ: !game noitu [từ_2_tiếng]
   ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝗜̀𝗡𝗛 𝗤𝗨𝗬𝗘̂̀𝗡 (Chỉ Admin)
