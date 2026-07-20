@@ -7,22 +7,14 @@ let activeWordGame = false;
 let isPublicMode = false; 
 const processedMessages = new Set();
 
+// Biến hàm này thành module để file giao diện gọi được
 module.exports = function(ADMIN_ID, updateStatus) {
     
     if (!fs.existsSync('appstate.json')) {
         return updateStatus("❌ Lỗi: Thiếu file appstate.json!");
     }
 
-    // --- BƯỚC 1: KIỂM TRA ĐỊNH DẠNG SỐ TRƯỚC ---
     const cleanID = String(ADMIN_ID).trim();
-    const isValidFormat = /^[0-9]{4,16}$/.test(cleanID);
-
-    if (!isValidFormat) {
-        updateStatus("❌ Sai id facebook! Vui lòng kiểm tra id của bạn.");
-        console.log(`[HỆ THỐNG] Từ chối do ID không hợp lệ cấu trúc: ${ADMIN_ID}`);
-        return; 
-    }
-
     const credentials = { appState: JSON.parse(fs.readFileSync('appstate.json', 'utf8')) };
 
     login(credentials, (err, api) => {
@@ -31,122 +23,107 @@ module.exports = function(ADMIN_ID, updateStatus) {
             return updateStatus("❌ Đăng nhập thất bại! Kiểm tra appstate.");
         }
 
-        // --- BƯỚC 2: TRA CỨU XEM ID CÓ TRÊN FACEBOOK KHÔNG (ĐÃ SỬA THÀNH MẢNG) ---
-        console.log(`[HỆ THỐNG] Đang tiến hành tra cứu ID Admin: ${cleanID}...`);
-        
-        // Sửa lỗi: Bọc cleanID vào trong cặp dấu ngoặc vuông [ ] để tạo thành mảng dữ liệu hợp lệ
-        api.getUserInfo([cleanID], (userInfoErr, ret) => {
+        // Báo trạng thái thành công lên màn hình App ngay khi đăng nhập xong
+        updateStatus("🟢 BOT ĐÃ HOẠT ĐỘNG THÀNH CÔNG!");
+
+        api.setOptions({ 
+            listenEvents: true,  
+            selfListen: false,
+            forceUseID: true,
+            autoMarkDelivery: true,
+            online: true, 
+            userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        });
+
+        // 🛡️ CHỐNG LOGOUT 1: Tự động lưu Cookie mới khi Facebook làm mới phiên làm việc
+        const updateCookie = () => {
+            try {
+                if (typeof api.getAppState === "function") {
+                    const newState = api.getAppState();
+                    fs.writeFileSync('appstate.json', JSON.stringify(newState, null, 2), 'utf8');
+                    console.log("🔄 [HỆ THỐNG] Đã tự động cập nhật Cookie mới vào appstate.json");
+                }
+            } catch (writeErr) {
+                console.error("❌ Lỗi tự động lưu Cookie mới:", writeErr);
+            }
+        };
+
+        api.listenMqtt((err, message) => {
+            if (err || !message) return;
             
-            // Nếu Facebook trả về lỗi hoặc mảng rỗng không có ID này
-            if (userInfoErr || !ret || Object.keys(ret).length === 0 || !ret[cleanID]) {
-                updateStatus("❌ Sai id facebook! Vui lòng kiểm tra id của bạn.");
-                console.log(`⚠️ [HỆ THỐNG] ID ${cleanID} không tồn tại trên hệ thống Facebook! Từ chối thiết lập Admin.`);
-                if (typeof api.logout === "function") api.logout(); 
+            // Kích hoạt làm mới cookie mỗi khi có tương tác
+            updateCookie();
+
+            // ===== TỰ ĐỘNG CHẤP NHẬN KẾT BẠN =====
+            if (message.type === "friend_request" || message.logMessageType === "friend_request_received") {
+                const senderID = message.senderID || message.author;
+                api.handleFriendRequest(senderID, true, (err) => {
+                    if (!err) {
+                        api.sendTypingIndicator(senderID, () => {
+                            setTimeout(() => {
+                                api.sendMessage("Cảm ơn bạn đã kết bạn với Bot nhé! Gõ !menu để xem các tính năng giải trí nha. ✨", senderID);
+                            }, 1500);
+                        });
+                    }
+                });
                 return;
             }
 
-            // Lấy tên Facebook của Admin từ kết quả trả về
-            const adminName = ret[cleanID].name || "Người dùng Facebook";
+            if (message.type !== "message") return;
+            if (processedMessages.has(message.messageID)) return;
+            processedMessages.add(message.messageID);
+            setTimeout(() => processedMessages.delete(message.messageID), 3000);
 
-            // ID hoàn toàn có thật -> Thông báo thành công và cấp quyền
-            updateStatus("🎉 Chúc mừng! id đã đúng. bot đã bắt đầu đăng nhập.");
-            console.log(`🟢 [HỆ THỐNG] ID hợp lệ! Đã thiết lập Admin: ${adminName} (${cleanID})`);
+            const senderID = message.senderID;
+            const body = message.body ? message.body.trim() : "";
+            const threadID = message.threadID; 
+            
+            const isAdmin = (senderID === cleanID); 
+            const hasPermission = isAdmin || isPublicMode;
 
-            api.setOptions({ 
-                listenEvents: true,  
-                selfListen: false,
-                forceUseID: true,
-                autoMarkDelivery: true,
-                online: true, 
-                userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            });
+            // 🛡️ CHỐNG LOGOUT 2: Giả lập trạng thái gõ chữ và tạo độ trễ 1.5s né bộ quét spam
+            function safeSend(text, targetThread, msgID = null) {
+                api.sendTypingIndicator(targetThread, (err) => {
+                    setTimeout(() => {
+                        api.sendMessage(text, targetThread, () => {}, msgID);
+                    }, 1500); 
+                });
+            }
 
-            // Tự động cập nhật AppState
-            const updateCookie = () => {
-                try {
-                    if (typeof api.getAppState === "function") {
-                        const newState = api.getAppState();
-                        fs.writeFileSync('appstate.json', JSON.stringify(newState, null, 2), 'utf8');
-                    }
-                } catch (writeErr) {
-                    console.error("❌ Lỗi tự động lưu Cookie mới:", writeErr);
+            // --- HỆ THỐNG LỆNH CỦA BOT ---
+            if (body.toLowerCase() === "!menu") {
+                if (!hasPermission) return safeSend("❌ Bạn không có quyền sử dụng Menu!", threadID, message.messageID);
+                return safeSend(`╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗\n 📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡\n 🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]\n 🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠Ｅ 𝗚𝗜𝗔̉𝑰 𝗧🇷𝗜́\n 🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]\n 🔹 Nối từ: !game noitu [từ_2_tiếng]\n ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝑰̀𝗡𝗛 𝗤𝗨𝗬Ｅ̂̀𝗡 (Chỉ Admin)\n 🔹 Mở quyền nhóm: !accept @all\n╚═══════════════════════╝`, threadID, message.messageID);
+            }
+
+            if (body.toLowerCase().startsWith("!game oantuti ")) {
+                const userChoice = body.slice(14).toLowerCase().trim();
+                const choices = ["keo", "bua", "bao"];
+                if (!choices.includes(userChoice)) return safeSend("❌ Hãy gõ: !game oantuti [keo/bua/bao]", threadID, message.messageID);
+                const botChoice = choices[Math.floor(Math.random() * choices.length)];
+                let result = userChoice === botChoice ? "🤝 Hòa!" : ((userChoice === "keo" && botChoice === "bao") || (userChoice === "bua" && botChoice === "keo") || (userChoice === "bao" && botChoice === "bua") ? "🎉 Bạn thắng!" : "🤪 Bạn thua!");
+                return safeSend(`🤖 Bot: ${botChoice} vs 👤 Bạn: ${userChoice}\n👉 ${result}`, threadID, message.messageID);
+            }
+
+            if (body.toLowerCase().startsWith("!1 ")) {
+                if (!hasPermission) return;
+                const commandContent = body.slice(3).trim();
+                if (commandContent.toLowerCase() === "off") {
+                    if (autoSendInterval) { clearInterval(autoSendInterval); autoSendInterval = null; return safeSend("⏹️ Đã tắt tự động gửi!", threadID, message.messageID); }
                 }
-            };
+                const regex = /^delay:([0-9.]+)(ms|s|m|h)\s+(.+)$/i;
+                const match = commandContent.match(regex);
+                if (!match) return safeSend("❌ Sai cú pháp!", threadID, message.messageID);
+                const value = parseFloat(match[1]); const unit = match[2].toLowerCase(); const content = match[3];
+                let timeMs = unit === "s" ? value * 1000 : (unit === "m" ? value * 60 * 1000 : (unit === "h" ? value * 60 * 60 * 1000 : value));
+                if (autoSendInterval) clearInterval(autoSendInterval);
+                safeSend(`✅ Bắt đầu gửi tự động chu kỳ ${value}${unit}!`, threadID, message.messageID);
+                autoSendInterval = setInterval(() => { api.sendMessage(content, threadID); }, timeMs);
+            }
 
-            api.listenMqtt((err, message) => {
-                if (err || !message) return;
-                updateCookie();
-
-                // ===== TỰ ĐỘNG CHẤP NHẬN KẾT BẠN =====
-                if (message.type === "friend_request" || message.logMessageType === "friend_request_received") {
-                    const senderID = message.senderID || message.author;
-                    api.handleFriendRequest(senderID, true, (err) => {
-                        if (!err) {
-                            api.sendTypingIndicator(senderID, () => {
-                                setTimeout(() => {
-                                    api.sendMessage("Cảm ơn bạn đã kết bạn với Bot nhé! Gõ !menu để xem các tính năng giải trí nha. ✨", senderID);
-                                }, 1500);
-                            });
-                        }
-                    });
-                    return;
-                }
-
-                if (message.type !== "message") return;
-                if (processedMessages.has(message.messageID)) return;
-                processedMessages.add(message.messageID);
-                setTimeout(() => processedMessages.delete(message.messageID), 3000);
-
-                const senderID = message.senderID;
-                const body = message.body ? message.body.trim() : "";
-                const threadID = message.threadID; 
-                
-                const isAdmin = (senderID === cleanID); 
-                const hasPermission = isAdmin || isPublicMode;
-
-                function safeSend(text, targetThread, msgID = null) {
-                    api.sendTypingIndicator(targetThread, (err) => {
-                        setTimeout(() => {
-                            api.sendMessage(text, targetThread, () => {}, msgID);
-                        }, 1500); 
-                    });
-                }
-
-                // --- HỆ THỐNG LỆNH CỦA BOT ---
-                if (body.toLowerCase() === "!menu") {
-                    if (!hasPermission) return safeSend("❌ Bạn không có quyền sử dụng Menu!", threadID, message.messageID);
-                    return safeSend(`╔════ 🌟 𝐃𝐔𝐂𝐊𝐇𝐀𝐈 𝐌𝐄𝐍𝐔 🌟 ════╗\n 📨 [𝟭] 𝗧𝗨̛̣ Đ𝗢̂𝗡𝗚 𝗚𝗨̛̉𝑰 𝗧𝗜𝗡 🇳𝗛𝗔́𝗡\n 🔹 Cú pháp: !1 delay:[thời_gian][đơn_vị] [nội dung]\n 🎮 [𝟮] 𝗠𝗜𝗡𝗜 𝗚𝗔𝗠Ｅ 𝗚𝗜𝗔̉𝑰 𝗧🇷𝗜́\n 🔹 Oẳn tù tì: !game oantuti [keo/bua/bao]\n 🔹 Nối từ: !game noitu [từ_2_tiếng]\n ⚙️ [𝟯] 𝗖𝗔̂́𝗨 𝗛𝑰̀𝗡𝗛 𝗤𝗨𝗬Ｅ̂̀𝗡 (Chỉ Admin)\n 🔹 Mở quyền nhóm: !accept @all\n╚═══════════════════════╝`, threadID, message.messageID);
-                }
-
-                if (body.toLowerCase().startsWith("!game oantuti ")) {
-                    const userChoice = body.slice(14).toLowerCase().trim();
-                    const choices = ["keo", "bua", "bao"];
-                    if (!choices.includes(userChoice)) return safeSend("❌ Hãy gõ: !game oantuti [keo/bua/bao]", threadID, message.messageID);
-                    const botChoice = choices[Math.floor(Math.random() * choices.length)];
-                    let result = userChoice === botChoice ? "🤝 Hòa!" : ((userChoice === "keo" && botChoice === "bao") || (userChoice === "bua" && botChoice === "keo") || (userChoice === "bao" && botChoice === "bua") ? "🎉 Bạn thắng!" : "🤪 Bạn thua!");
-                    return safeSend(`🤖 Bot: ${botChoice} vs 👤 Bạn: ${userChoice}\n👉 ${result}`, threadID, message.messageID);
-                }
-
-                if (body.toLowerCase().startsWith("!1 ")) {
-                    if (!hasPermission) return;
-                    const commandContent = body.slice(3).trim();
-                    if (commandContent.toLowerCase() === "off") {
-                        if (autoSendInterval) { clearInterval(autoSendInterval); autoSendInterval = null; return safeSend("⏹️ Đã tắt tự động gửi!", threadID, message.messageID); }
-                    }
-                    const regex = /^delay:([0-9.]+)(ms|s|m|h)\s+(.+)$/i;
-                    const match = commandContent.match(regex);
-                    if (!match) return safeSend("❌ Sai cú pháp!", threadID, message.messageID);
-                    const value = parseFloat(match[1]); const unit = match[2].toLowerCase(); const content = match[3];
-                    let timeMs = unit === "s" ? value * 1000 : (unit === "m" ? value * 60 * 1000 : (unit === "h" ? value * 60 * 60 * 1000 : value));
-                    if (autoSendInterval) clearInterval(autoSendInterval);
-                    safeSend(`✅ Bắt đầu gửi tự động chu kỳ ${value}${unit}!`, threadID, message.messageID);
-                    autoSendInterval = setInterval(() => { api.sendMessage(content, threadID); }, timeMs);
-                }
-
-                if (!isAdmin) return; 
-                if (body.toLowerCase() === "!accept @all") { isPublicMode = true; return safeSend("🔓 Đã mở quyền dùng bot cho mọi người!", threadID, message.messageID); }
-                if (body.toLowerCase() === "!accept off") { isPublicMode = false; return safeSend("🔒 Đã khóa quyền, chỉ Admin được dùng!", threadID, message.messageID); }
-            });
+            if (!isAdmin) return; 
+            if (body.toLowerCase() === "!accept @all") { isPublicMode = true; return safeSend("🔓 Đã mở quyền dùng bot cho mọi người!", threadID, message.messageID); }
+            if (body.toLowerCase() === "!accept off") { isPublicMode = false; return safeSend("🔒 Đã khóa quyền, chỉ Admin được dùng!", threadID, message.messageID); }
         });
     });
 };
